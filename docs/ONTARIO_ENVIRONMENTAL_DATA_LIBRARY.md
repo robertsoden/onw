@@ -13,8 +13,8 @@ The `ontario-environmental-data` library extracts reusable data access component
 
 ## Library Location
 
-**Repository:** TBD (to be published)
-**Development:** `/home/user/ontario-environmental-data`
+**Repository:** https://github.com/robertsoden/ontario-environmental-data
+**Development:** `/Users/robertsoden/ontario-environmental-data`
 
 ## Architecture
 
@@ -417,9 +417,9 @@ A: Keep ONW-specific code in ONW. Library is for shared components only.
 
 ## See Also
 
-- **Library Repository:** TBD
-- **Library Documentation:** `ontario-environmental-data/README.md`
-- **Williams Treaties Integration:** TBD
+- **Library Repository:** https://github.com/robertsoden/ontario-environmental-data
+- **Library Documentation:** https://github.com/robertsoden/ontario-environmental-data#readme
+- **Williams Treaties Integration:** https://github.com/robertsoden/williams-treaties
 - **ONW Handlers:** `src/tools/data_handlers/`
 
 ## Contact
@@ -430,6 +430,6 @@ For questions about library integration:
 
 ---
 
-**Document Version:** 1.0
-**Last Updated:** 2024
-**Status:** Library in development, integration pending
+**Document Version:** 1.1
+**Last Updated:** November 2024
+**Status:** Library published at https://github.com/robertsoden/ontario-environmental-data
