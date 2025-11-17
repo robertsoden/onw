@@ -8,6 +8,7 @@ from langgraph.types import Command
 
 from src.tools.data_handlers.analytics_handler import AnalyticsHandler
 from src.tools.data_handlers.base import DataPullResult
+from src.tools.data_handlers.ontario_handler import OntarioDataHandler
 from src.tools.datasets_config import DATASETS
 from src.utils.logging_config import get_logger
 
@@ -20,6 +21,7 @@ class DataPullOrchestrator:
     def __init__(self):
         self.handlers = [
             AnalyticsHandler(),
+            OntarioDataHandler(),  # Ontario-specific environmental data
         ]
 
     async def pull_data(
