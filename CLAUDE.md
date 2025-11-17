@@ -44,6 +44,13 @@ Both agents use specialized tools in `src/tools/`:
 - `compare_ontario_areas`: Compare multiple areas side-by-side
 - `get_ontario_statistics`: Ontario-specific environmental data (placeholder)
 
+**Ontario Environmental Data Library:**
+The Ontario agent uses the `ontario-environmental-data` library for:
+- **API Clients**: iNaturalist and eBird biodiversity data
+- **Configuration**: Centralized config for API keys and rate limits
+- **Geometry Utilities**: Bounds extraction and spatial filtering
+- **Library Repo**: https://github.com/robertsoden/ontario-environmental-data
+
 ### Agent State Schema
 The agent maintains stateful conversations using `AgentState` TypedDict in `src/graph/`:
 - `messages`: Conversation history
@@ -196,5 +203,8 @@ See `docs/CLI.md` for detailed CLI documentation.
 
 - Agent architecture details: `docs/AGENT_ARCHITECTURE.md`
 - CLI documentation: `docs/CLI.md`
+- Ontario Environmental Data Library: https://github.com/robertsoden/ontario-environmental-data
+- Ontario Library Integration Guide: `docs/ONTARIO_ENVIRONMENTAL_DATA_LIBRARY.md`
+- Ontario Library Readiness Assessment: `docs/ONTARIO_LIBRARY_READINESS_ASSESSMENT.md`
 - Frontend repository: https://github.com/wri/project-zeno-next
 - Deployment infrastructure: https://github.com/wri/project-zeno-deploy

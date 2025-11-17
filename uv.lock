@@ -2504,6 +2504,30 @@ wheels = [
 ]
 
 [[package]]
+name = "ontario-environmental-data"
+version = "0.1.0"
+source = { directory = "../ontario-environmental-data" }
+dependencies = [
+    { name = "aiohttp" },
+    { name = "pydantic" },
+]
+
+[package.metadata]
+requires-dist = [
+    { name = "aiohttp", specifier = ">=3.9.0" },
+    { name = "black", marker = "extra == 'dev'", specifier = ">=23.0.0" },
+    { name = "geopandas", marker = "extra == 'geo'", specifier = ">=0.14.0" },
+    { name = "mypy", marker = "extra == 'dev'", specifier = ">=1.0.0" },
+    { name = "pydantic", specifier = ">=2.0.0" },
+    { name = "pytest", marker = "extra == 'dev'", specifier = ">=7.0.0" },
+    { name = "pytest-asyncio", marker = "extra == 'dev'", specifier = ">=0.21.0" },
+    { name = "pytest-cov", marker = "extra == 'dev'", specifier = ">=4.0.0" },
+    { name = "ruff", marker = "extra == 'dev'", specifier = ">=0.1.0" },
+    { name = "shapely", marker = "extra == 'geo'", specifier = ">=2.0.0" },
+]
+provides-extras = ["dev", "geo"]
+
+[[package]]
 name = "openai"
 version = "1.100.2"
 source = { registry = "https://pypi.org/simple" }
@@ -2851,6 +2875,7 @@ dependencies = [
     { name = "langfuse" },
     { name = "langgraph" },
     { name = "langgraph-checkpoint-postgres" },
+    { name = "ontario-environmental-data" },
     { name = "pandas" },
     { name = "psycopg" },
     { name = "psycopg-pool" },
@@ -2922,6 +2947,7 @@ requires-dist = [
     { name = "langfuse", specifier = "==3.3.4" },
     { name = "langgraph", specifier = "==0.5.4" },
     { name = "langgraph-checkpoint-postgres", specifier = "==2.0.23" },
+    { name = "ontario-environmental-data", directory = "../ontario-environmental-data" },
     { name = "pandas", specifier = "==2.2.3" },
     { name = "psycopg", specifier = "==3.2.9" },
     { name = "psycopg-pool", specifier = "==3.2.6" },
