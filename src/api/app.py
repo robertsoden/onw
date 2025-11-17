@@ -745,7 +745,9 @@ async def extract_anonymous_session_cookie(request: Request) -> Optional[str]:
     """
 
     # Extract anonymous session ID from auth header (validation already done in fetch_user_from_rw_api)
-    auth_header = request.headers["Authorization"]
+    auth_header = request.headers.get("Authorization")
+    if not auth_header:
+        return None
     credentials = auth_header.strip("Bearer ")
     [scheme, anonymous_id] = credentials.split(":", 1)
     return f"{ANONYMOUS_USER_PREFIX}:{anonymous_id}"
@@ -774,6 +776,9 @@ async def get_user_identity_and_daily_quota(
     if not user:
         daily_quota = APISettings.anonymous_user_daily_quota
         identity = await extract_anonymous_session_cookie(request)
+        # For local testing without auth headers, use a default anonymous identity
+        if not identity:
+            identity = f"{ANONYMOUS_USER_PREFIX}:local-test"
 
     else:
         if user.user_type == UserType.ADMIN:

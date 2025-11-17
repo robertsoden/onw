@@ -87,9 +87,15 @@ for message in st.session_state.messages:
 
 client = ZenoClient(base_url=API_BASE_URL, token=st.session_state.token)
 
-quota_info = client.get_quota_info()
-
-remaining_prompts = quota_info["promptQuota"] - quota_info["promptsUsed"]
+# Try to get quota info, but don't block the UI if it fails (for local development)
+try:
+    quota_info = client.get_quota_info()
+    remaining_prompts = quota_info["promptQuota"] - quota_info["promptsUsed"]
+except Exception as e:
+    # Fallback for local development when quota endpoint is unavailable
+    st.warning(f"Could not fetch quota info (running in development mode): {str(e)[:100]}")
+    remaining_prompts = "unlimited (dev mode)"
+    quota_info = {"promptQuota": float('inf'), "promptsUsed": 0}
 
 # Initialize pending input state
 if "pending_input" not in st.session_state:
