@@ -5,11 +5,22 @@ ONTARIO_PARKS_TABLE = "ontario_parks"
 ONTARIO_CONSERVATION_AREAS_TABLE = "ontario_conservation_areas"
 WILLIAMS_TREATY_TERRITORIES_TABLE = "williams_treaty_first_nations"
 
+# Williams Treaty data tables (ported from williams-treaties repository)
+WATER_ADVISORIES_TABLE = "ontario_water_advisories"
+FIRE_INCIDENTS_TABLE = "ontario_fire_incidents"
+FIRE_DANGER_TABLE = "ontario_fire_danger"
+INDIGENOUS_INFRASTRUCTURE_TABLE = "ontario_indigenous_infrastructure"
+COMMUNITY_WELLBEING_TABLE = "ontario_community_wellbeing"
+
 # Source IDs for area identification
 ONTARIO_SOURCE_IDS = {
     "ontario_parks": 1,
     "conservation_areas": 2,
     "williams_treaty": 3,
+    "water_advisories": 4,
+    "fire_incidents": 5,
+    "infrastructure": 6,
+    "community_wellbeing": 7,
 }
 
 # Williams Treaty First Nations

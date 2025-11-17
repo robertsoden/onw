@@ -9,6 +9,7 @@ from langgraph.types import Command
 from src.tools.data_handlers.analytics_handler import AnalyticsHandler
 from src.tools.data_handlers.base import DataPullResult
 from src.tools.data_handlers.ontario_handler import OntarioDataHandler
+from src.tools.data_handlers.williams_treaty_handler import WilliamsTreatyDataHandler
 from src.tools.datasets_config import DATASETS
 from src.utils.logging_config import get_logger
 
@@ -22,6 +23,7 @@ class DataPullOrchestrator:
         self.handlers = [
             AnalyticsHandler(),
             OntarioDataHandler(),  # Ontario-specific environmental data
+            WilliamsTreatyDataHandler(),  # Williams Treaty data sources
         ]
 
     async def pull_data(
