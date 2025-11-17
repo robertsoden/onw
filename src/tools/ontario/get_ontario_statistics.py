@@ -27,7 +27,7 @@ class GetOntarioStatisticsInput(BaseModel):
     )
     metric: Optional[str] = Field(
         default=None,
-        description="Optional specific metric: 'biodiversity', 'birds', 'water_quality', 'species_count'",
+        description="Optional specific metric: 'biodiversity', 'birds', 'forest_cover', 'tree_cover', 'tree_loss', 'deforestation', 'water_quality', 'species_count'",
     )
     start_date: Optional[str] = Field(
         default=None, description="Start date for observations (YYYY-MM-DD)"
@@ -58,15 +58,24 @@ async def get_ontario_statistics(
     - Bird observations (eBird)
     - Species counts and diversity
     - Recent wildlife sightings
+    - Forest cover and tree loss (via Global Forest Watch fallback)
+
+    Automatically falls back to global datasets when Ontario-specific data is not available.
+    For example, forest metrics use Global Forest Watch data.
 
     Args:
         area_name: Name of the Ontario area
-        metric: Optional specific metric to retrieve ('biodiversity', 'birds', etc.)
+        metric: Optional specific metric to retrieve:
+            - 'biodiversity': General species observations (iNaturalist)
+            - 'birds': Bird-specific observations (eBird)
+            - 'forest_cover' / 'tree_cover': Forest coverage (GFW)
+            - 'tree_loss' / 'deforestation': Tree cover loss (GFW)
+            - 'water_quality': Water quality data (Phase 2)
         start_date: Start date for observations (defaults to last 30 days)
         end_date: End date for observations (defaults to today)
 
     Returns:
-        Dictionary with environmental statistics
+        Dictionary with environmental statistics (source indicated in response)
     """
     logger.info(
         f"Getting Ontario statistics for: {area_name}, metric: {metric}, dates: {start_date} to {end_date}"
@@ -143,18 +152,39 @@ async def get_ontario_statistics(
                 "geometry": geometry,
             }
 
-        # Initialize Ontario data handler
+        # Initialize Ontario data handler (with fallback support)
         handler = OntarioDataHandler()
 
         # Determine which data source to query based on metric
         if metric == "birds" or metric == "bird_observations":
             # Use eBird if API key is configured
             dataset = {"source": "eBird", "type": "observations"}
+        elif metric in ["forest_cover", "tree_cover", "tree_loss", "deforestation"]:
+            # For forest metrics, use GFW datasets (will trigger fallback)
+            from src.tools.datasets_config import DATASETS
+
+            # Find appropriate GFW dataset
+            dataset_map = {
+                "forest_cover": "Tree cover",
+                "tree_cover": "Tree cover",
+                "tree_loss": "Tree cover loss",
+                "deforestation": "Tree cover loss",
+            }
+            dataset_name = dataset_map.get(metric, "Tree cover")
+
+            # Get dataset from config
+            matching_datasets = [
+                ds for ds in DATASETS if ds["dataset_name"] == dataset_name
+            ]
+            if matching_datasets:
+                dataset = matching_datasets[0]
+            else:
+                dataset = {"source": "iNaturalist", "type": "observations"}
         else:
             # Default to iNaturalist for general biodiversity
             dataset = {"source": "iNaturalist", "type": "observations"}
 
-        # Pull data using the handler
+        # Pull data using the handler (with automatic fallback to global datasets)
         result = await handler.pull_data(
             query=f"Get {metric or 'biodiversity'} data for {area_name}",
             aoi=aoi,
@@ -172,45 +202,75 @@ async def get_ontario_statistics(
                 "message": result.message,
                 "area_name": area_name,
                 "metric": metric,
+                "note": "Tried both Ontario-specific and global datasets",
             }
 
         # Process and summarize the data
-        observations = result.data
-        species_counts = {}
-        for obs in observations:
-            species = obs.get("scientific_name") or obs.get("common_name")
-            if species:
-                species_counts[species] = species_counts.get(species, 0) + 1
+        # Check if this is biodiversity data (list of observations) or analytics data (dict)
+        is_biodiversity_data = isinstance(result.data, list)
 
-        # Sort species by observation count
-        top_species = sorted(
-            species_counts.items(), key=lambda x: x[1], reverse=True
-        )[:10]
+        if is_biodiversity_data:
+            # Handle biodiversity observations (from iNaturalist/eBird)
+            observations = result.data
+            species_counts = {}
+            for obs in observations:
+                species = obs.get("scientific_name") or obs.get("common_name")
+                if species:
+                    species_counts[species] = species_counts.get(species, 0) + 1
 
-        return {
-            "status": "success",
-            "area_name": area_row.name,
-            "area_type": area_row.type,
-            "metric": metric or "biodiversity",
-            "date_range": {"start": start_date, "end": end_date},
-            "data_source": dataset["source"],
-            "total_observations": len(observations),
-            "unique_species": len(species_counts),
-            "top_species": [
-                {"species": species, "observation_count": count}
-                for species, count in top_species
-            ],
-            "recent_observations": [
-                {
-                    "species": obs.get("common_name") or obs.get("scientific_name"),
-                    "scientific_name": obs.get("scientific_name"),
-                    "date": obs.get("observation_date") or obs.get("observation_datetime"),
-                    "source": obs.get("source"),
-                }
-                for obs in observations[:5]
-            ],
-            "message": f"Found {len(observations)} observations of {len(species_counts)} species in {area_row.name}",
-        }
+            # Sort species by observation count
+            top_species = sorted(
+                species_counts.items(), key=lambda x: x[1], reverse=True
+            )[:10]
+
+            # Determine data source (check if message indicates fallback)
+            data_source_note = ""
+            if "[Using global dataset]" in result.message:
+                data_source_note = " (via global dataset)"
+
+            return {
+                "status": "success",
+                "area_name": area_row.name,
+                "area_type": area_row.type,
+                "metric": metric or "biodiversity",
+                "date_range": {"start": start_date, "end": end_date},
+                "data_source": dataset.get("source", "iNaturalist") + data_source_note,
+                "total_observations": len(observations),
+                "unique_species": len(species_counts),
+                "top_species": [
+                    {"species": species, "observation_count": count}
+                    for species, count in top_species
+                ],
+                "recent_observations": [
+                    {
+                        "species": obs.get("common_name")
+                        or obs.get("scientific_name"),
+                        "scientific_name": obs.get("scientific_name"),
+                        "date": obs.get("observation_date")
+                        or obs.get("observation_datetime"),
+                        "source": obs.get("source"),
+                    }
+                    for obs in observations[:5]
+                ],
+                "message": f"Found {len(observations)} observations of {len(species_counts)} species in {area_row.name}",
+            }
+        else:
+            # Handle analytics data (from GFW - tree cover, forest data, etc.)
+            analytics_data = result.data
+
+            return {
+                "status": "success",
+                "area_name": area_row.name,
+                "area_type": area_row.type,
+                "metric": metric or "forest_cover",
+                "date_range": {"start": start_date, "end": end_date},
+                "data_source": dataset.get("dataset_name", "Global Forest Watch"),
+                "data_type": "analytics",
+                "analytics_data": analytics_data,
+                "data_points_count": result.data_points_count,
+                "message": result.message.replace("[Using global dataset] ", ""),
+                "note": "Using global dataset (Ontario-specific data for this metric not yet available)",
+            }
 
     except Exception as e:
         logger.error(f"Error getting Ontario statistics: {e}", exc_info=True)

@@ -2,13 +2,20 @@
 
 **Date:** November 16, 2025
 **Status:** ✅ Implemented - Ready for Testing
-**Version:** 1.0
+**Version:** 1.1
+**New in 1.1:** Automatic Fallback to Global Datasets
 
 ---
 
 ## Implementation Overview
 
 This document summarizes the implementation of Ontario environmental data integration into the Ontario Nature Watch platform, based on the comprehensive research documented in `docs/new/`.
+
+### Key Feature: Intelligent Fallback System 🎯
+
+The system now **automatically falls back to global datasets (Global Forest Watch)** when Ontario-specific data is not available. This ensures users always get environmental data, even during development phases.
+
+**See:** `docs/ONTARIO_FALLBACK_SYSTEM.md` for complete fallback documentation.
 
 ## What Was Implemented
 
@@ -214,14 +221,46 @@ result = await handler.pull_data(
 - Species diversity calculations
 - Recent observation summaries
 
+### Fallback System ✅ **NEW**
+
+**Automatic fallback to global datasets when:**
+- Ontario-specific source not implemented yet (e.g., GBIF, PWQMN)
+- Ontario source returns no data
+- API key not configured (e.g., eBird key missing)
+- Request is for non-biodiversity metrics (e.g., forest cover, tree loss)
+
+**How it works:**
+```
+User Request → Try Ontario Source → (If no data) → Fall back to GFW → Return Results
+```
+
+**Supported Fallback Metrics:**
+- Forest cover → GFW Tree cover
+- Tree loss → GFW Tree cover loss
+- Land cover → GFW Land cover
+- Grasslands → GFW Grasslands
+- Carbon flux → GFW Forest carbon
+
+**User Communication:**
+- Messages clearly indicate source: `"[Using global dataset] Tree cover: 87.5%"`
+- Ontario data preferred when available
+- Seamless experience
+
+📚 **Full Documentation:** `docs/ONTARIO_FALLBACK_SYSTEM.md`
+
 ### Known Limitations
 
 ⚠️ **Current Phase Limitations:**
-1. PWQMN water quality data - CSV download not yet implemented
+1. PWQMN water quality data - CSV download not yet implemented (Phase 2)
 2. GBIF integration - Planned for Phase 2
 3. DataStream API - Planned for Phase 2
 4. Forest Resources Inventory - Planned for Phase 3
 5. Data caching - Not yet implemented (all queries are real-time)
+
+✅ **Mitigated by Fallback:**
+- Missing Ontario forest data → Uses GFW forest datasets
+- Missing Ontario land cover → Uses GFW land cover
+- No biodiversity observations → Falls back to GFW protected area data
 
 ⚠️ **API Constraints:**
 - iNaturalist: 100 requests/minute (60 req/min recommended)

@@ -6,6 +6,9 @@ Integrates multiple Ontario environmental data sources including:
 - GBIF (global biodiversity)
 - PWQMN (water quality monitoring)
 - DataStream (standardized water quality)
+
+Includes fallback to global datasets (GFW Analytics) when Ontario-specific
+data is not available or insufficient.
 """
 
 import asyncio
@@ -237,6 +240,9 @@ class EBirdClient:
 class OntarioDataHandler(DataSourceHandler):
     """
     Unified data handler for Ontario-specific environmental data sources.
+
+    Supports fallback to global datasets (GFW Analytics) when Ontario-specific
+    data is not available or returns insufficient results.
     """
 
     def __init__(self, config: OntarioConfig = None):
@@ -263,6 +269,9 @@ class OntarioDataHandler(DataSourceHandler):
             else None
         )
 
+        # Fallback handler for global datasets
+        self.fallback_handler = None  # Initialized lazily to avoid circular imports
+
     def can_handle(self, dataset: Any) -> bool:
         """Check if dataset is Ontario-specific."""
         ontario_sources = [
@@ -281,6 +290,15 @@ class OntarioDataHandler(DataSourceHandler):
 
         return dataset.get("source") in ontario_sources
 
+    def _get_fallback_handler(self):
+        """Get or initialize the fallback handler for global datasets."""
+        if self.fallback_handler is None:
+            # Import here to avoid circular imports
+            from src.tools.data_handlers.analytics_handler import AnalyticsHandler
+
+            self.fallback_handler = AnalyticsHandler()
+        return self.fallback_handler
+
     async def pull_data(
         self,
         query: str,
@@ -295,6 +313,11 @@ class OntarioDataHandler(DataSourceHandler):
         """
         Pull data from Ontario sources based on dataset type.
 
+        Falls back to global datasets (GFW Analytics) when:
+        - Ontario-specific source is not available
+        - Ontario source returns no data
+        - Query is for data types not in Ontario sources (e.g., forest cover, tree loss)
+
         Args:
             query: User's query string
             aoi: Area of interest dictionary
@@ -306,42 +329,77 @@ class OntarioDataHandler(DataSourceHandler):
             end_date: ISO format date string
 
         Returns:
-            DataPullResult with observations
+            DataPullResult with observations (from Ontario or global sources)
         """
         source = dataset.get("source")
 
         logger.info(
-            f"Ontario handler pulling {source} data for query: {query[:100]}..."
+            f"Ontario handler attempting {source} data for query: {query[:100]}..."
         )
 
+        # Try Ontario-specific sources first
         try:
             if source == "iNaturalist":
-                return await self._pull_inat_data(aoi, start_date, end_date)
+                result = await self._pull_inat_data(aoi, start_date, end_date)
+                if result.success and result.data_points_count > 0:
+                    return result
+                logger.info(f"iNaturalist returned no data, trying fallback...")
+
             elif source == "eBird":
                 if not self.ebird_client:
-                    return DataPullResult(
-                        success=False,
-                        data=[],
-                        message="eBird API key not configured. Set EBIRD_API_KEY environment variable.",
-                        data_points_count=0,
-                    )
-                return await self._pull_ebird_data(aoi, start_date, end_date)
+                    logger.info("eBird API key not configured, trying fallback...")
+                else:
+                    result = await self._pull_ebird_data(aoi, start_date, end_date)
+                    if result.success and result.data_points_count > 0:
+                        return result
+                    logger.info(f"eBird returned no data, trying fallback...")
+
             else:
-                return DataPullResult(
-                    success=False,
-                    data=[],
-                    message=f"Ontario data source '{source}' not yet implemented. Available: iNaturalist, eBird",
-                    data_points_count=0,
+                # Source not implemented in Ontario handler
+                logger.info(
+                    f"Ontario source '{source}' not yet implemented, trying fallback..."
                 )
 
         except Exception as e:
-            logger.error(f"Error in Ontario handler: {e}", exc_info=True)
-            return DataPullResult(
-                success=False,
-                data=[],
-                message=f"Error pulling {source} data: {str(e)}",
-                data_points_count=0,
+            logger.warning(f"Error in Ontario handler: {e}, trying fallback...")
+
+        # Try fallback to global datasets
+        fallback_handler = self._get_fallback_handler()
+
+        if fallback_handler.can_handle(dataset):
+            logger.info(
+                f"Falling back to global datasets (GFW Analytics) for {dataset.get('dataset_name', source)}"
             )
+            try:
+                fallback_result = await fallback_handler.pull_data(
+                    query=query,
+                    aoi=aoi,
+                    subregion_aois=subregion_aois,
+                    subregion=subregion,
+                    subtype=subtype,
+                    dataset=dataset,
+                    start_date=start_date,
+                    end_date=end_date,
+                )
+
+                # Add note to message that this came from fallback
+                if fallback_result.success:
+                    fallback_result.message = (
+                        f"[Using global dataset] {fallback_result.message}"
+                    )
+
+                return fallback_result
+
+            except Exception as e:
+                logger.error(f"Fallback handler also failed: {e}", exc_info=True)
+
+        # No data available from any source
+        return DataPullResult(
+            success=False,
+            data=[],
+            message=f"No data available for {source}. Ontario-specific data not found and no global dataset fallback available.",
+            data_points_count=0,
+        )
 
     async def _pull_inat_data(
         self, aoi: dict, start_date: str, end_date: str

@@ -272,21 +272,84 @@ class TestOntarioDataHandler:
         assert "API key not configured" in result.message
 
     @pytest.mark.asyncio
-    async def test_pull_data_unsupported_source(self, ontario_handler, algonquin_aoi):
-        """Test unsupported data source."""
+    async def test_pull_data_unsupported_source_falls_back(
+        self, ontario_handler, algonquin_aoi
+    ):
+        """Test that unsupported Ontario source falls back to global datasets."""
+        # Mock the fallback handler
+        from unittest.mock import AsyncMock
+
+        mock_fallback = AsyncMock()
+        mock_fallback.can_handle.return_value = True
+        mock_fallback.pull_data = AsyncMock(
+            return_value=DataPullResult(
+                success=True,
+                data={"tree_cover": 75.5},
+                message="Tree cover data retrieved",
+                data_points_count=1,
+            )
+        )
+        ontario_handler.fallback_handler = mock_fallback
+
+        dataset = {"source": "TreeCoverGFW", "dataset_name": "Tree cover"}
         result = await ontario_handler.pull_data(
-            query="Test query",
+            query="Tree cover query",
             aoi=algonquin_aoi,
             subregion_aois=[],
             subregion="",
             subtype="park",
-            dataset={"source": "UnsupportedSource", "type": "observations"},
-            start_date="2024-06-01",
-            end_date="2024-06-30",
+            dataset=dataset,
+            start_date="2024-01-01",
+            end_date="2024-12-31",
         )
 
-        assert result.success is False
-        assert "not yet implemented" in result.message
+        # Should succeed via fallback
+        assert result.success is True
+        assert "[Using global dataset]" in result.message
+        assert mock_fallback.pull_data.called
+
+    @pytest.mark.asyncio
+    async def test_inat_no_data_falls_back(self, ontario_handler, algonquin_aoi):
+        """Test that when iNaturalist returns no data, it falls back."""
+        with patch("aiohttp.ClientSession") as mock_session:
+            # Mock empty iNaturalist response
+            mock_response = AsyncMock()
+            mock_response.status = 200
+            mock_response.json = AsyncMock(return_value={"results": []})
+
+            mock_session.return_value.__aenter__.return_value.get.return_value.__aenter__.return_value = (
+                mock_response
+            )
+
+            # Mock fallback handler
+            from unittest.mock import AsyncMock
+
+            mock_fallback = AsyncMock()
+            mock_fallback.can_handle.return_value = True
+            mock_fallback.pull_data = AsyncMock(
+                return_value=DataPullResult(
+                    success=True,
+                    data={"forest_data": "some_data"},
+                    message="Fallback data retrieved",
+                    data_points_count=10,
+                )
+            )
+            ontario_handler.fallback_handler = mock_fallback
+
+            result = await ontario_handler.pull_data(
+                query="Biodiversity query",
+                aoi=algonquin_aoi,
+                subregion_aois=[],
+                subregion="",
+                subtype="park",
+                dataset={"source": "iNaturalist", "type": "observations"},
+                start_date="2024-06-01",
+                end_date="2024-06-30",
+            )
+
+            # Should succeed via fallback
+            assert result.success is True
+            assert "[Using global dataset]" in result.message
 
 
 class TestINaturalistClient:
