@@ -62,6 +62,7 @@ dev = [
     "lancedb==0.24.1",
     "pytest-asyncio==1.1.0",
     "locust==2.32.5",
+    "langchain-ollama>=0.3.0",  # For local LLM development
 ]
 frontend = [
     "streamlit==1.47.0",
